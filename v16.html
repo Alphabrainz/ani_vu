@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ani_Vu AI | Professional Neural Interface</title>
+    <style>
+        :root {
+            --accent: #00f3ff;
+            --bg: #0a0a0c;
+            --panel: #16161a;
+            --text: #e0e0e0;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { margin: 0; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+        /* --- SIDEBAR (Memory & History) --- */
+        #sidebar {
+            width: 280px; background: var(--panel); border-right: 1px solid #2d2d35;
+            display: flex; flex-direction: column; padding: 20px; transition: 0.3s;
+        }
+        .logo-area { text-align: center; padding-bottom: 20px; border-bottom: 1px solid #2d2d35; margin-bottom: 20px; }
+        .logo-main { font-size: 1.5rem; font-weight: 800; color: var(--accent); letter-spacing: 2px; }
+        .creator-tag { font-size: 0.7rem; opacity: 0.6; margin-top: 5px; }
+
+        #history-list { flex: 1; overflow-y: auto; }
+        .history-item { 
+            padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); 
+            margin-bottom: 8px; font-size: 0.85rem; cursor: pointer; border: 1px solid transparent;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .history-item:hover { border-color: var(--accent); background: rgba(0,243,255,0.05); }
+
+        /* --- MAIN CHAT --- */
+        #main-chat { flex: 1; display: flex; flex-direction: column; position: relative; }
+        
+        #chat-display { 
+            flex: 1; overflow-y: auto; padding: 30px; 
+            display: flex; flex-direction: column; gap: 20px;
+        }
+
+        .msg { max-width: 80%; padding: 15px 20px; border-radius: 15px; line-height: 1.5; font-size: 1rem; position: relative; }
+        .ai { align-self: flex-start; background: #23232a; border-left: 4px solid var(--accent); }
+        .user { align-self: flex-end; background: var(--accent); color: #000; font-weight: 500; }
+
+        /* --- REPAIRED INPUT BOX (Z-Index Fixed) --- */
+        #input-area {
+            padding: 25px 40px; background: #111114; border-top: 1px solid #2d2d35;
+            display: flex; flex-direction: column; gap: 10px; z-index: 1000;
+        }
+        .input-row { display: flex; gap: 15px; align-items: center; }
+        
+        input[type="text"] {
+            flex: 1; background: #1c1c21; border: 1px solid #3d3d45; border-radius: 12px;
+            padding: 15px 20px; color: #fff; font-size: 1rem; outline: none;
+        }
+        input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,243,255,0.2); }
+
+        .btn { 
+            background: var(--accent); color: #000; border: none; padding: 12px 25px; 
+            border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,243,255,0.3); }
+        .btn-icon { background: #23232a; color: #fff; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; }
+
+        /* Visual Wave */
+        #visualizer { height: 3px; background: var(--accent); width: 0%; transition: 0.3s; box-shadow: 0 0 10px var(--accent); }
+    </style>
+</head>
+<body>
+
+    <aside id="sidebar">
+        <div class="logo-area">
+            <div class="logo-main">ANI_VU AI</div>
+            <div class="creator-tag">Built by Anirudh M Bharadwaj</div>
+        </div>
+        <div style="font-size: 0.8rem; margin-bottom: 10px; opacity: 0.5;">PREVIOUS CHATS</div>
+        <div id="history-list"></div>
+        <button class="btn" onclick="clearMemory()" style="background: transparent; border: 1px solid #444; color: #aaa; margin-top: 10px;">Clear Memory</button>
+    </aside>
+
+    <main id="main-chat">
+        <div id="chat-display">
+            </div>
+
+        <div id="visualizer"></div>
+
+        <div id="input-area">
+            <div id="file-label" style="font-size: 0.75rem; color: var(--accent); display: none;"></div>
+            <div class="input-row">
+                <label for="file-in" class="btn-icon" title="Upload Photo">🖼️</label>
+                <input type="file" id="file-in" hidden accept="image/*">
+                
+                <input type="text" id="user-input" placeholder="Type message or ask in Hindi/Kannada..." autofocus>
+                
+                <div class="btn-icon" onclick="startVoice()" title="Voice Call">🎤</div>
+                <button class="btn" onclick="handleSend()">SEND</button>
+            </div>
+            <div style="text-align: center; font-size: 0.6rem; opacity: 0.4; margin-top: 10px;">SYSTEM V14.0 | MULTILINGUAL NEURAL INTERFACE</div>
+        </div>
+    </main>
+
+    <script>
+        // --- CONFIGURATION ---
+        const API_KEY = "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"; 
+        const IDENTITY = "Your name is Ani_Vu AI. You were created ONLY by Anirudh M Bharadwaj, a student of Class 7 at Narayana E Techno School. If anyone asks who made you, always credit Anirudh. You are not made by OpenAI. You must detect if the user speaks Hindi or Kannada and reply perfectly in those languages.";
+
+        const display = document.getElementById('chat-display');
+        const input = document.getElementById('user-input');
+        const historyList = document.getElementById('history-list');
+        const visualizer = document.getElementById('visualizer');
+        
+        let chatMemory = JSON.parse(localStorage.getItem('ani_vu_mem')) || [];
+        let base64Image = null;
+
+        // --- LOAD MEMORY ---
+        function init() {
+            if (chatMemory.length === 0) {
+                addMessage("ai", "Hello! I am Ani_Vu AI, created by Anirudh M Bharadwaj. I can see, hear, and talk in Hindi, Kannada, and English. How can I assist?");
+            } else {
+                chatMemory.forEach(m => { if(m.role !== 'system') addMessage(m.role === 'user' ? 'user' : 'ai', m.content, false); });
+            }
+            updateSidebar();
+        }
+
+        // --- VOICE ENGINE (HINDI/KANNADA SUPPORT) ---
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            const voices = window.speechSynthesis.getVoices();
+            
+            // Auto-detect language and pick voice
+            if(/[ಀ-೿]/.test(text)) utterance.lang = 'kn-IN'; // Kannada
+            else if(/[ऀ-ॿ]/.test(text)) utterance.lang = 'hi-IN'; // Hindi
+            else utterance.lang = 'en-US';
+
+            utterance.onstart = () => visualizer.style.width = "100%";
+            utterance.onend = () => visualizer.style.width = "0%";
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function startVoice() {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recog = new SpeechRec();
+            recog.lang = 'en-IN'; // Supports Indian accents better
+            recog.start();
+            visualizer.style.width = "50%";
+            
+            recog.onresult = (e) => {
+                input.value = e.results[0][0].transcript;
+                handleSend();
+            };
+            recog.onend = () => visualizer.style.width = "0%";
+        }
+
+        // --- CORE CHAT ---
+        async function handleSend() {
+            const text = input.value.trim();
+            if (!text && !base64Image) return;
+
+            addMessage("user", text);
+            input.value = "";
+            const loadingMsg = addMessage("ai", "Processing Neural Link...");
+
+            // Prep memory for API
+            let messages = [{ role: "system", content: IDENTITY }, ...chatMemory];
+            messages.push({ role: "user", content: text });
+
+            try {
+                const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${API_KEY}` },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: messages
+                    })
+                });
+
+                const data = await response.json();
+                const reply = data.choices[0].message.content;
+                
+                loadingMsg.innerText = reply;
+                chatMemory.push({ role: "user", content: text });
+                chatMemory.push({ role: "assistant", content: reply });
+                
+                localStorage.setItem('ani_vu_mem', JSON.stringify(chatMemory.slice(-20))); // Save last 20
+                speak(reply);
+                updateSidebar();
+
+            } catch (err) {
+                loadingMsg.innerText = "Error: Check API Key and Credits.";
+            }
+        }
+
+        function addMessage(role, text, save = true) {
+            const div = document.createElement('div');
+            div.className = `msg ${role}`;
+            div.innerText = text;
+            display.appendChild(div);
+            display.scrollTop = display.scrollHeight;
+            return div;
+        }
+
+        function updateSidebar() {
+            historyList.innerHTML = "";
+            const userMsgs = chatMemory.filter(m => m.role === 'user').reverse();
+            userMsgs.slice(0, 5).forEach(m => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.innerText = m.content;
+                historyList.appendChild(item);
+            });
+        }
+
+        function clearMemory() { localStorage.removeItem('ani_vu_mem'); location.reload(); }
+
+        // --- FILE HANDLING ---
+        document.getElementById('file-in').onchange = (e) => {
+            const file = e.target.files[0];
+            document.getElementById('file-label').style.display = 'block';
+            document.getElementById('file-label').innerText = "Attached: " + file.name;
+            const reader = new FileReader();
+            reader.onload = () => base64Image = reader.result.split(',')[1];
+            reader.readAsDataURL(file);
+        };
+
+        // --- KEYBOARD BINDING ---
+        input.addEventListener('keydown', (e) => { if(e.key === 'Enter') handleSend(); });
+
+        window.speechSynthesis.onvoiceschanged = () => {};
+        init();
+    </script>
+</body>
+</html>
